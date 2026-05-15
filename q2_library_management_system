@@ -1,0 +1,91 @@
+def add_book(catalog, book_id, title, author, year):
+    """Add a book to the catalog. Value is a tuple (immutable — details shouldn't change)."""
+    catalog[book_id] = (title, author, year)
+    print(f"Book '{title}' added with ID {book_id}.")
+
+
+def borrow_book(catalog, borrowed_books, book_id):
+    """Borrow a book only if it exists and isn't already borrowed."""
+    if book_id not in catalog:
+        print(f"Book ID {book_id} does not exist in the catalog.")
+    elif book_id in borrowed_books:
+        print(f"Book ID {book_id} is already borrowed.")
+    else:
+        borrowed_books.append(book_id)
+        title = catalog[book_id][0]
+        print(f"Book '{title}' (ID: {book_id}) borrowed successfully.")
+
+
+def return_book(borrowed_books, book_id):
+    """Return a borrowed book."""
+    if book_id in borrowed_books:
+        borrowed_books.remove(book_id)
+        print(f"Book ID {book_id} returned successfully.")
+    else:
+        print(f"Book ID {book_id} was not in the borrowed list.")
+
+
+def register_member(members, member_id):
+    """Register a member. Silently ignores duplicates (set handles this automatically)."""
+    before = len(members)
+    members.add(member_id)
+    if len(members) == before:
+        print(f"Member {member_id} is already registered (ignored).")
+    else:
+        print(f"Member {member_id} registered successfully.")
+
+
+def show_available(catalog, borrowed_books):
+    """Print all books that are NOT currently borrowed."""
+    print("\n--- Available Books ---")
+    available = False
+    for book_id, (title, author, year) in catalog.items():
+        if book_id not in borrowed_books:
+            print(f"  ID: {book_id} | '{title}' by {author} ({year})")
+            available = True
+    if not available:
+        print("  No books available at the moment.")
+    print("-----------------------\n")
+
+
+def main():
+    # Dict: fast lookup by book ID
+    catalog = {}
+
+    # List: tracks borrowed books in insertion order
+    borrowed_books = []
+
+    # Set: unique member IDs, no duplicates
+    members = set()
+
+    # Add 4 books
+    add_book(catalog, 1, "The Pragmatic Programmer", "Hunt & Thomas", 1999)
+    add_book(catalog, 2, "Clean Code", "Robert C. Martin", 2008)
+    add_book(catalog, 3, "Python Crash Course", "Eric Matthes", 2019)
+    add_book(catalog, 4, "Fluent Python", "Luciano Ramalho", 2022)
+
+    print()
+
+    # Register 3 members (try adding the same member twice)
+    register_member(members, "M001")
+    register_member(members, "M002")
+    register_member(members, "M003")
+    register_member(members, "M002")  # duplicate — silently ignored
+
+    print()
+
+    # Borrow 2 books
+    borrow_book(catalog, borrowed_books, 1)
+    borrow_book(catalog, borrowed_books, 3)
+    borrow_book(catalog, borrowed_books, 3)  # already borrowed
+
+    print()
+
+    # Return 1 book
+    return_book(borrowed_books, 1)
+
+    # Show available books
+    show_available(catalog, borrowed_books)
+
+
+main()
