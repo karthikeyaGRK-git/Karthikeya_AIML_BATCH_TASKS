@@ -1,0 +1,152 @@
+# ─────────────────────────────────────────────
+# PART A — Spot the Bug
+# ─────────────────────────────────────────────
+
+# BUG: Using a mutable default argument (cart=[]).
+# Python evaluates default argument values ONCE when the function is defined,
+# not each time the function is called.
+# So the same list object is reused across all calls that don't pass a cart.
+
+def add_item_buggy(item, cart=[]):
+    cart.append(item)
+    return cart
+
+# Predicted output:
+# ['apple']               ← cart is the shared default list, now has 'apple'
+# ['apple', 'banana']     ← same shared list, 'banana' appended to it
+# ['bread', 'milk']       ← new list passed explicitly, so fine
+# ['apple', 'banana', 'eggs']  ← back to the shared default list!
+
+print("--- Part A: Buggy Output ---")
+print(add_item_buggy("apple"))
+print(add_item_buggy("banana"))
+print(add_item_buggy("milk", cart=["bread"]))
+print(add_item_buggy("eggs"))
+
+# ─────────────────────────────────────────────
+# PART B — Fix It
+# ─────────────────────────────────────────────
+
+# Fix: Use None as the default, then create a fresh list inside the function body.
+# This way, a new list is created on every call that doesn't pass a cart.
+
+def add_item(item, cart=None):
+    if cart is None:
+        cart = []
+    cart.append(item)
+    return cart
+
+print("\n--- Part B: Fixed Output ---")
+print(add_item("apple"))    # ['apple']
+print(add_item("banana"))   # ['banana']  ← fresh list, not shared!
+print(add_item("milk", cart=["bread"]))  # ['bread', 'milk']
+print(add_item("eggs"))     # ['eggs']
+
+# ─────────────────────────────────────────────
+# PART C — Build the Cart
+# ─────────────────────────────────────────────
+
+def create_cart(owner, discount=0):
+    """
+    Returns a fresh cart dict for each customer.
+    discount=0 is an immutable default (int) — safe to use as default.
+    Each call creates a brand-new dict with its own empty items list.
+    """
+    return {"owner": owner, "items": [], "discount": discount}
+
+
+def add_to_cart(cart, name, price, qty=1):
+    """Appends an item dict to the cart's items list."""
+    cart["items"].append({"name": name, "price": price, "qty": qty})
+    print(f"  Added: {qty}x {name} @ ₹{price} to {cart['owner']}'s cart")
+
+
+def update_price(price_tuple, new_price):
+    """
+    Attempts to modify a tuple element.
+    This will raise a TypeError because tuples are IMMUTABLE —
+    once created, their elements cannot be changed, added, or removed.
+    Python stores tuples as fixed-size memory blocks with no mutate methods.
+    """
+    try:
+        price_tuple[0] = new_price  # TypeError: 'tuple' object does not support item assignment
+    except TypeError as e:
+        print(f"\n  [Expected Error] Cannot modify tuple: {e}")
+        print("  Tuples are immutable — use them for data that must not change (e.g., book details, coordinates).")
+
+
+def calculate_total(cart):
+    """Sums price * qty for all items, then applies the discount percentage."""
+    subtotal = sum(item["price"] * item["qty"] for item in cart["items"])
+    discount_amount = subtotal * (cart["discount"] / 100)
+    total = subtotal - discount_amount
+    return total
+
+
+# ── Demonstration ──
+
+print("\n--- Part C: Two Independent Carts ---\n")
+
+# Customer 1
+cart1 = create_cart("Priya", discount=10)
+add_to_cart(cart1, "Rice (5kg)", 300, qty=2)
+add_to_cart(cart1, "Dal", 120)
+add_to_cart(cart1, "Cooking Oil", 180)
+
+# Customer 2
+cart2 = create_cart("Rahul", discount=0)
+add_to_cart(cart2, "Notebook", 80, qty=3)
+add_to_cart(cart2, "Pen Set", 150)
+
+# Totals
+total1 = calculate_total(cart1)
+total2 = calculate_total(cart2)
+
+print(f"\n  {cart1['owner']}'s Total (after {cart1['discount']}% discount): ₹{total1:.2f}")
+print(f"  {cart2['owner']}'s Total (after {cart2['discount']}% discount): ₹{total2:.2f}")
+
+# Prove carts are independent — modifying cart1 does NOT affect cart2
+cart1["items"].append({"name": "Extra item", "price": 999, "qty": 1})
+print(f"\n  After adding extra item to Priya's cart:")
+print(f"  Priya's items count: {len(cart1['items'])}")
+print(f"  Rahul's items count: {len(cart2['items'])}  ← unaffected ✓")
+
+# Demonstrate tuple immutability
+price_info = (299, "INR")
+update_price(price_info, 399)
+
+
+# ─────────────────────────────────────────────
+# DISCUSSION POINTS
+# ─────────────────────────────────────────────
+
+# Q1: Why is discount=0 safe but cart=[] dangerous?
+# discount=0 uses an integer, which is IMMUTABLE. Every call that doesn't pass
+# a discount gets the value 0, but since integers can't be mutated, there's no
+# shared state to accidentally corrupt. cart=[] uses a list, which is MUTABLE.
+# Python creates that list once at function-definition time and reuses the
+# same object on every default call — so appending to it in one call
+# "leaks" into the next call. The fix is to use None and create a new list
+# inside the function body each time.
+
+# Q2: What is the difference between rebinding and mutating?
+# REBINDING: Pointing a variable name at a completely new object.
+#   x = [1, 2]
+#   x = [3, 4]   ← x now refers to a new list; the old one is unaffected.
+# MUTATING: Changing the contents of the object the variable points to.
+#   x = [1, 2]
+#   x.append(3)  ← the same list object is modified in place → [1, 2, 3]
+# Rebinding inside a function does NOT affect the caller's variable.
+# Mutating inside a function DOES affect the caller's object (shared reference).
+
+# Q3: Which of these are mutable?
+# MUTABLE   → list, dict, set
+# IMMUTABLE → tuple, str, int
+# (Mutable = can be changed in place; Immutable = any "change" creates a new object)
+
+# Q4: When you pass a list into a function and modify it, do changes reflect outside? Why?
+# YES. Python passes object references, not copies. Both the caller's variable
+# and the function's parameter point to the same list object in memory.
+# So calling .append(), .remove(), etc. inside the function modifies the
+# original list that the caller sees. To avoid this, pass a copy:
+#   func(my_list.copy())   or   func(list(my_list))
