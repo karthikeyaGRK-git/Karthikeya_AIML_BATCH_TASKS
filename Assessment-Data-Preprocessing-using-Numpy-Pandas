@@ -1,0 +1,176 @@
+import numpy as np
+import pandas as pd
+from io import StringIO
+ 
+# ─────────────────────────────────────────────
+# RAW DATA
+# ─────────────────────────────────────────────
+raw = """student_id,name,age,gender,math_score,science_score,attendance,exam_date
+1,Teresa,,,,,, 
+2,Amber,20,Female,,70,65,
+3,Sherri,18,Female,150,70,65,March 5 2024
+4,Brittany,twenty,Male,150,,90,
+5,Daniel,18,Female,,999,72,12-03-2024
+6,Frederick,21,Female,,999,65,12-03-2024
+7,Eric,twenty,Male,55,999,80,12-03-2024
+8,Carolyn,,Female,88,999,,12-03-2024
+9,Frank,18,Female,150,60,,12-03-2024
+10,James,18,Male,55,95,,12-03-2024
+11,John,21,,72,70,,
+12,Luis,,Male,55,60,65,March 5 2024
+13,Angela,18,Male,91,999,72,12-03-2024
+14,Allison,21,Female,67,85,80,12-03-2024
+15,Donald,twenty,Female,88,999,,12-03-2024
+16,Kathleen,19,,67,95,72,12-03-2024
+17,Rebecca,twenty,Male,150,,,12-03-2024
+18,Sarah,21,,150,60,90,12-03-2024
+19,Jennifer,21,,88,95,90,March 5 2024
+20,John,,Male,,85,72,12-03-2024
+21,Amber,21,Female,67,,65,12-03-2024
+22,James,21,Male,67,,,
+23,Ronald,20,,67,999,65,March 5 2024
+24,Evan,18,,67,999,,12-03-2024
+25,Douglas,twenty,Female,91,85,80,
+26,Michael,twenty,,88,999,,
+27,Kimberly,21,Female,150,95,90,
+28,Brittany,18,Male,67,999,72,March 5 2024
+29,Elizabeth,,Female,91,70,65,
+30,Janice,19,Male,72,85,80,12-03-2024
+6,Frederick,21,Female,,999,65,12-03-2024
+11,John,21,,72,70,,"""
+ 
+SEP = "\n" + "="*70 + "\n"
+ 
+# ─────────────────────────────────────────────
+# PART 1 — NumPy Operations
+# ─────────────────────────────────────────────
+print(SEP + "PART 1 — NumPy Operations" + SEP)
+ 
+df_raw = pd.read_csv(StringIO(raw))
+ 
+# Drop obvious outliers (>100) before NumPy stats for meaningful analysis
+math_valid = pd.to_numeric(df_raw["math_score"], errors="coerce")
+math_clean = math_valid[math_valid <= 100].dropna()
+ 
+math_array = np.array(math_clean)
+print(f"NumPy array from math_score (valid, non-outlier values):\n{math_array}\n")
+ 
+mean_val   = np.mean(math_array)
+median_val = np.median(math_array)
+max_val    = np.max(math_array)
+min_val    = np.min(math_array)
+ 
+print(f"Mean   : {mean_val:.2f}")
+print(f"Median : {median_val:.2f}")
+print(f"Max    : {max_val:.2f}")
+print(f"Min    : {min_val:.2f}")
+ 
+# Min-Max normalisation
+normalized = (math_array - min_val) / (max_val - min_val)
+print(f"\nNormalized math_score array (Min-Max):\n{np.round(normalized, 4)}")
+ 
+# ─────────────────────────────────────────────
+# PART 2 — Pandas Exploration
+# ─────────────────────────────────────────────
+print(SEP + "PART 2 — Pandas Exploration" + SEP)
+ 
+df = pd.read_csv(StringIO(raw))
+ 
+print("First 5 rows:")
+print(df.head())
+ 
+print("\nData types:")
+print(df.dtypes)
+ 
+print("\nMissing values per column:")
+print(df.isnull().sum())
+ 
+# Students with attendance below 70
+df["attendance"] = pd.to_numeric(df["attendance"], errors="coerce")
+low_att = df[df["attendance"] < 70][["student_id", "name", "attendance"]]
+print(f"\nStudents with attendance below 70%:\n{low_att}")
+ 
+# ─────────────────────────────────────────────
+# PART 3 — Data Preprocessing
+# ─────────────────────────────────────────────
+print(SEP + "PART 3 — Data Preprocessing" + SEP)
+ 
+df2 = pd.read_csv(StringIO(raw))
+ 
+# ── 3a. Duplicates ──────────────────────────
+print(f"Duplicate rows found: {df2.duplicated().sum()}")
+df2.drop_duplicates(inplace=True)
+print(f"Rows after removing duplicates: {len(df2)}")
+ 
+# ── 3b. Fix 'age' (convert word → NaN) ──────
+def fix_age(val):
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return np.nan
+ 
+df2["age"] = df2["age"].apply(fix_age)
+print(f"\nAge after fixing text values (sample):\n{df2[['name','age']].head(10)}")
+ 
+# ── 3c. Convert exam_date ────────────────────
+df2["exam_date"] = pd.to_datetime(df2["exam_date"], errors="coerce")
+print(f"\nexam_date dtype after conversion: {df2['exam_date'].dtype}")
+print(df2[["name", "exam_date"]].dropna().head(8))
+ 
+# ── 3d. Convert score columns to numeric ─────
+df2["math_score"]    = pd.to_numeric(df2["math_score"],    errors="coerce")
+df2["science_score"] = pd.to_numeric(df2["science_score"], errors="coerce")
+df2["attendance"]    = pd.to_numeric(df2["attendance"],    errors="coerce")
+ 
+# ── 3e. Outlier handling ─────────────────────
+# math_score valid range: 0–100; science_score valid range: 0–100
+# Values of 150 (math) and 999 (science) are clearly erroneous → replace with NaN
+MATH_MAX    = 100
+SCIENCE_MAX = 100
+ 
+outliers_math    = (df2["math_score"]    > MATH_MAX)   .sum()
+outliers_science = (df2["science_score"] > SCIENCE_MAX).sum()
+print(f"\nOutliers in math_score    (>{MATH_MAX})   : {outliers_math}")
+print(f"Outliers in science_score (>{SCIENCE_MAX}) : {outliers_science}")
+ 
+df2.loc[df2["math_score"]    > MATH_MAX,    "math_score"]    = np.nan
+df2.loc[df2["science_score"] > SCIENCE_MAX, "science_score"] = np.nan
+print("Outliers replaced with NaN.")
+ 
+# ── 3f. Impute missing values ────────────────
+df2["age"]           = df2["age"].fillna(df2["age"].median())
+df2["math_score"]    = df2["math_score"].fillna(df2["math_score"].median())
+df2["science_score"] = df2["science_score"].fillna(df2["science_score"].median())
+df2["attendance"]    = df2["attendance"].fillna(df2["attendance"].median())
+df2["gender"]        = df2["gender"].fillna("Unknown")
+ 
+print("\nMissing values after imputation:")
+print(df2.isnull().sum())
+ 
+# ─────────────────────────────────────────────
+# PART 4 — Data Analysis
+# ─────────────────────────────────────────────
+print(SEP + "PART 4 — Data Analysis" + SEP)
+ 
+# ── 4a. New column: average_score ────────────
+df2["average_score"] = (df2["math_score"] + df2["science_score"]) / 2
+print("average_score column added.")
+ 
+# ── 4b. Top 5 students by average_score ──────
+top5 = df2[["student_id", "name", "math_score", "science_score", "average_score"]]\
+         .sort_values("average_score", ascending=False).head(5)
+print(f"\nTop 5 students by average_score:\n{top5.to_string(index=False)}")
+ 
+# ── 4c. Correlation: attendance vs marks ─────
+corr_math    = df2["attendance"].corr(df2["math_score"])
+corr_science = df2["attendance"].corr(df2["science_score"])
+corr_avg     = df2["attendance"].corr(df2["average_score"])
+print(f"\nCorrelation — Attendance vs Math Score   : {corr_math:.4f}")
+print(f"Correlation — Attendance vs Science Score: {corr_science:.4f}")
+print(f"Correlation — Attendance vs Average Score: {corr_avg:.4f}")
+ 
+# ── 4d. Group by gender ───────────────────────
+gender_group = df2.groupby("gender")[["math_score", "science_score", "average_score"]].mean().round(2)
+print(f"\nAverage marks grouped by gender:\n{gender_group}")
+ 
+print(SEP + "Preprocessing complete." + SEP)Assess
